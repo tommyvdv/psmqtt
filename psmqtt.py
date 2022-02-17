@@ -183,9 +183,9 @@ def on_timer(s, dt, tasks):
     delay = (rrulestr(dt).after(now) - now).total_seconds()
     s.enter(delay, 1, on_timer, [s, dt, tasks])
 
-
 # noinspection PyUnusedLocal
 def on_connect(client, userdata, flags, result_code):
+    publish_birth(client)
     if request_topic != '':
         topic = request_topic + '#'
         logging.debug("Connected to MQTT broker, subscribing to topic " + topic)
@@ -196,6 +196,22 @@ def on_connect(client, userdata, flags, result_code):
 def on_disconnect(mosq, userdata, rc):
     logging.debug("OOOOPS! psmqtt disconnects")
     time.sleep(10)
+
+
+def publish_birth(client):
+    topic = cf.get('mqtt_birth_topic', 'clients/psmqtt')
+    payload = cf.get('mqtt_birth_payload', 'Ola!')
+    qos = cf.get('mqtt_birth_qos', 0)
+    retain = cf.get('mqtt_birth_retain', False)
+    client.publish(topic, payload, qos, retain)
+
+
+def set_last_will(client):
+    topic = cf.get('mqtt_will_topic', 'clients/psmqtt')
+    payload = cf.get('mqtt_will_payload', 'Adios!')
+    qos = cf.get('mqtt_will_qos', 0)
+    retain = cf.get('mqtt_will_retain', False)
+    client.will_set(topic, payload, qos, retain)
 
 
 def split(s):
@@ -220,8 +236,7 @@ if __name__ == '__main__':
     mqttc.on_message = on_message
     mqttc.on_connect = on_connect
     mqttc.on_disconnect = on_disconnect
-
-    mqttc.will_set('clients/psmqtt', payload="Adios!", qos=0, retain=False)
+    set_last_will(mqttc)
 
     # Delays will be: 3, 6, 12, 24, 30, 30, ...
     # mqttc.reconnect_delay_set(delay=3, delay_max=30, exponential_backoff=True)
